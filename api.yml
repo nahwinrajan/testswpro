@@ -1,0 +1,222 @@
+# This is the OpenAPI specification for your service. It is used to generate the client code.
+# To generate the server code, use the Gradle task `openApiGenerate`. The 
+# generated code will be placed in `build/generate-resources/main`.
+#
+# We will evaluate you based on how well you design your API.
+# 1. How well it follows REST principles.
+# 2. How easy it is to understand and use.
+#
+# References
+# 1. https://swagger.io/specification/
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Estate Drone Patrol
+  license:
+    name: MIT
+servers:
+  - url: http://localhost
+paths:
+  /estate:
+    post:
+      summary: Create and stores new estate in database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEstateRequestBody"
+      responses:
+        '201':
+          description: Resource Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateEstateResponse"
+        '400':
+          description: Bad Request
+          content: 
+            application/json:
+              schema:
+              $ref: "#/components/schemas/ErrorResponse"
+  /estate/{id}/tree:
+    post:
+      summary: stores tree data in a given estate with the ID <id>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTreeRequestBody"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Resource Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateTreeResponse"
+        '400':
+          description: Bad Request
+          content: 
+            application/json:
+              schema:
+              $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+              $ref: "#/components/schemas/ErrorResponse"
+  /estate/{id}/stats:
+    get:
+      summary: return the stats of the tree in the estate with ID <id>
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success/OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstateStatsResponse"
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /estate/{id}/drone-plan:
+    get:
+      summary: return sum distance of the drone monitoring travel in the estate with ID <id>
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        # - name: max_distance
+        #   in: query
+        #   required: true
+        #   schema:
+        #     type: integer
+      responses:
+        '200':
+          description: Success/OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstateDronePlanResponse"
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    CreateEstateRequestBody:
+      type: object
+      required:
+        - length
+        - width
+      properties:
+        length:
+          type: integer
+          minimum: 1
+          maximum: 50000
+        width:
+          type: integer
+          minimum: 1
+          maximum: 50000
+    CreateEstateResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          example: 123e4567-e89b-12d3-a456-42661417aeb
+    CreateTreeRequestBody:
+      type: object
+      required:
+        - x
+        - y
+        - height
+      properties:
+        x:
+          type: integer
+          minimum: 1
+          maximum: 50000
+        y:
+          type: integer
+          minimum: 1
+          maximum: 50000
+        height:
+          type: integer
+          minimum: 1
+          maximum: 30
+    CreateTreeResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          example: 123e4567-e89b-12d3-a456-42661417aeb
+    EstateStatsResponse:
+      type: object
+      required:
+        - count
+        - max
+        - min
+        - median
+      properties:
+        count:
+          type: integer
+          example: 10
+        max:
+          type: integer
+          example: 30
+        min:
+          type: integer
+          example: 10
+        median:
+          type: integer
+          example: 15
+    EstateDronePlanResponse:
+      type: object
+      required:
+        - distance
+      properties:
+        distance:
+          type: integer
+          example: 200
+        # rest:
+        #   type: object
+        #   required:
+        #     - x
+        #     - y
+        #   properties:
+        #     x:
+        #       type: integer
+        #       example: 5
+        #     y:
+        #       type: integer
+        #       example: 7
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
