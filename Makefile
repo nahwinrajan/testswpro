@@ -8,6 +8,11 @@ build/main: cmd/main.go generated
 	@echo "Building..."
 	go build -o $@ $<
 
+# DEBUGGING
+build:
+	go build -a -o build/web cmd/main.go
+# END DEBUGGING
+
 clean:
 	rm -rf generated
 

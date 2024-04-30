@@ -3,24 +3,33 @@ package repository
 
 import (
 	"database/sql"
+	"log"
 
 	_ "github.com/lib/pq"
 )
 
+const (
+	driverPostgresDB = "postgres"
+)
+
 type Repository struct {
-	Db *sql.DB
+	db *sql.DB
 }
 
-type NewRepositoryOptions struct {
-	Dsn string
-}
-
-func NewRepository(opts NewRepositoryOptions) *Repository {
-	db, err := sql.Open("postgres", opts.Dsn)
+func New(dbDsn string) *Repository {
+	// open mere validating connection string
+	pgdb, err := sql.Open(driverPostgresDB, dbDsn)
 	if err != nil {
-		panic(err)
+		log.Panicf("[NewRepository] invalid connection string, err:%+v\n", err)
 	}
+
+	// validate that connection indeed can be established
+	err = pgdb.Ping()
+	if err != nil {
+		log.Panicf("[NewRepository] failed to established connection with database, err:%+v\n", err)
+	}
+
 	return &Repository{
-		Db: db,
+		db: pgdb,
 	}
 }

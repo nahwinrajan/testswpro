@@ -32,7 +32,7 @@ func (srv *Server) PostEstate(ectx echo.Context) error {
 		return ectx.JSON(http.StatusBadRequest, respBadReq)
 	}
 
-	id, err := srv.Repository.InsertEstate(ectx.Request().Context(), payload.Width, payload.Length)
+	id, err := srv.repository.InsertEstate(ectx.Request().Context(), payload.Width, payload.Length)
 	if err != nil {
 		// TODO: change log level according log level company guideline (info, error, etc)
 		ectx.Logger().Errorf("[CreateEstate] failed to insert payload:%+v, err:%s", payload, err)
@@ -60,7 +60,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
 
-	estate, err := srv.Repository.GetEstateByID(
+	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
 		strEstateID,
 	)
@@ -92,7 +92,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 		return ectx.JSON(http.StatusBadRequest, respBadReq)
 	}
 
-	strTreeID, err := srv.Repository.InsertTree(
+	strTreeID, err := srv.repository.InsertTree(
 		ectx.Request().Context(),
 		strEstateID,
 		payload.X,
@@ -116,7 +116,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 		// ideally, we have this on background, with multiple retry and then
 		// if still fail output alert to slack, manual rectify issue, and re-trigger calculation
 		ectx.Logger().Errorf("[CreateTree] failed to calculate stats and distance, err:%s", err)
-		srv.Repository.DeleteTree(ectx.Request().Context(), strTreeID)
+		srv.repository.DeleteTree(ectx.Request().Context(), strTreeID)
 		return ectx.JSON(http.StatusBadRequest, respBadReq)
 	}
 
@@ -135,7 +135,7 @@ func (srv *Server) GetEstateIdStats(ectx echo.Context, id int) error {
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
 
-	estate, err := srv.Repository.GetEstateByID(
+	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
 		strEstateID,
 	)
@@ -167,7 +167,7 @@ func (srv *Server) GetEstateIdDronePlan(ectx echo.Context, id int) error {
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
 
-	estate, err := srv.Repository.GetEstateByID(
+	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
 		strEstateID,
 	)

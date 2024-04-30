@@ -3,13 +3,12 @@ package handler
 import "github.com/nahwinrajan/testswpro/repository"
 
 type Server struct {
-	Repository repository.RepositoryInterface
+	repository repository.Repositorier
 }
 
-type NewServerOptions struct {
-	Repository repository.RepositoryInterface
-}
-
-func NewServer(opts NewServerOptions) *Server {
-	return &Server{}
+// New return reference to new instance of Server
+func New(repo repository.Repositorier) *Server {
+	return &Server{
+		repository: repo,
+	}
 }

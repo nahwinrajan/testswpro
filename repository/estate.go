@@ -9,9 +9,9 @@ import (
 
 const (
 	// *** Estate ***
-	queryGetEstateByID = `SELECT * FROM Estate WHERE estate_id = $1`
+	queryGetEstateByID = `SELECT * FROM estates WHERE estate_id = $1`
 	queryInsertEstate  = `
-		INSERT INTO Estate (width, length)
+		INSERT INTO estates (width, length)
 		VALUES ($1, $2)
 		RETURNING estate_id
 	`
@@ -29,23 +29,23 @@ const (
 	`
 
 	// *** Tree ***
-	queryGetTreeByEstateID = `SELECT * FROM Tree WHERE estate_id = $1`
+	queryGetTreeByEstateID = `SELECT * FROM trees WHERE estate_id = $1`
 	queryInsertTree        = `
-		INSERT INTO Tree (estate_id, x, y, height)
+		INSERT INTO trees (estate_id, x, y, height)
 		VALUES ($1, $2, $3, $4)
 		RETURNING tree_id
 	`
-	queryDeleteTree = `DELETE FROM Tree WHERE tree_id = $1`
+	queryDeleteTree = `DELETE FROM trees WHERE tree_id = $1`
 )
 
 // *** Estate ***
-func (r *Repository) GetEstateByID(ctx context.Context, estateID string) (output Estate, err error) {
-	err = r.Db.QueryRowContext(ctx, "SELECT * FROM Estate WHERE estate_id = $1", estateID).Scan(output)
+func (rp *Repository) GetEstateByID(ctx context.Context, estateID string) (output Estate, err error) {
+	err = rp.db.QueryRowContext(ctx, "SELECT * FROM Estate WHERE estate_id = $1", estateID).Scan(output)
 	return
 }
 
-func (r *Repository) InsertEstate(ctx context.Context, width, length int) (estateID string, err error) {
-	err = r.Db.QueryRowContext(
+func (rp *Repository) InsertEstate(ctx context.Context, width, length int) (estateID string, err error) {
+	err = rp.db.QueryRowContext(
 		ctx,
 		queryInsertEstate,
 		width,
@@ -55,8 +55,8 @@ func (r *Repository) InsertEstate(ctx context.Context, width, length int) (estat
 	return
 }
 
-func (r *Repository) UpdateEstate(ctx context.Context, count, min, max, median, patrol_distance int, patrol_route string) error {
-	_, err := r.Db.ExecContext(
+func (rp *Repository) UpdateEstate(ctx context.Context, count, min, max, median, patrol_distance int, patrol_route string) error {
+	_, err := rp.db.ExecContext(
 		ctx,
 		queryUpdateEstateStats,
 		count,
@@ -71,10 +71,10 @@ func (r *Repository) UpdateEstate(ctx context.Context, count, min, max, median, 
 }
 
 // *** Tree ***
-func (r *Repository) GetAllTreesInEstate(ctx context.Context, estateID string) ([]Tree, error) {
+func (rp *Repository) GetAllTreesInEstate(ctx context.Context, estateID string) ([]Tree, error) {
 	trees := make([]Tree, 0)
 
-	rows, err := r.Db.QueryContext(ctx, queryGetTreeByEstateID, estateID)
+	rows, err := rp.db.QueryContext(ctx, queryGetTreeByEstateID, estateID)
 	if err != nil {
 		return trees, err
 	}
@@ -91,8 +91,8 @@ func (r *Repository) GetAllTreesInEstate(ctx context.Context, estateID string) (
 	return trees, nil
 }
 
-func (r *Repository) InsertTree(ctx context.Context, estateID string, x, y, height int) (treeID string, err error) {
-	err = r.Db.QueryRowContext(
+func (rp *Repository) InsertTree(ctx context.Context, estateID string, x, y, height int) (treeID string, err error) {
+	err = rp.db.QueryRowContext(
 		ctx,
 		queryInsertEstate,
 		estateID,
@@ -116,8 +116,8 @@ func (r *Repository) InsertTree(ctx context.Context, estateID string, x, y, heig
 	return
 }
 
-func (r *Repository) DeleteTree(ctx context.Context, treeID string) error {
-	_, err := r.Db.ExecContext(ctx, queryDeleteTree, treeID)
+func (rp *Repository) DeleteTree(ctx context.Context, treeID string) error {
+	_, err := rp.db.ExecContext(ctx, queryDeleteTree, treeID)
 
 	return err
 }

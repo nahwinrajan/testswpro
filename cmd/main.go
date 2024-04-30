@@ -12,7 +12,7 @@ import (
 func main() {
 	e := echo.New()
 
-	var server generated.ServerInterface = newServer()
+	server := newServer()
 
 	generated.RegisterHandlers(e, server)
 	e.Use(middleware.Logger())
@@ -20,17 +20,18 @@ func main() {
 	// cors (unless we are only accessible from within cluster)
 	// metrics gathering
 	// http knobs (read, write, idle timeout, etc)
+
+	// TODO GRACEFUL SHUTDOWN
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
 func newServer() *handler.Server {
+	// *** DEBUGGING
+	dbDsn := "postgres://postgres:postgres@localhost:5432/database?sslmode=disable"
+	// *** END DEBUGGING
+
 	// dbDsn := os.Getenv("DATABASE_URL")
-	dbDsn := "postgres://postgres:postgres@db:5432/database?sslmode=disable"
-	var repo repository.RepositoryInterface = repository.NewRepository(repository.NewRepositoryOptions{
-		Dsn: dbDsn,
-	})
-	opts := handler.NewServerOptions{
-		Repository: repo,
-	}
-	return handler.NewServer(opts)
+	repo := repository.New(dbDsn)
+
+	return handler.New(repo)
 }

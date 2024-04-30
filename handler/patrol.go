@@ -36,7 +36,7 @@ const (
 
 // patrol do patrol the estate and calculate values for the stats and distance
 func (srv *Server) patrol(ctx context.Context, estateID string) error {
-	estate, err := srv.Repository.GetEstateByID(
+	estate, err := srv.repository.GetEstateByID(
 		ctx,
 		estateID,
 	)
@@ -44,7 +44,7 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 		return err
 	}
 
-	trees, err := srv.Repository.GetAllTreesInEstate(ctx, estateID)
+	trees, err := srv.repository.GetAllTreesInEstate(ctx, estateID)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 		}
 	}
 
-	err = srv.Repository.UpdateEstate(
+	err = srv.repository.UpdateEstate(
 		ctx,
 		lenTrees,
 		minHeight,
