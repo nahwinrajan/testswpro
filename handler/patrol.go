@@ -2,9 +2,12 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/nahwinrajan/testswpro/repository"
 )
 
 // Ideally this is put in Config files, but since this is test
@@ -33,8 +36,12 @@ const (
 // but since this is following SDK and there is no such layer,
 // let's just follow as is
 
-// patrol do patrol the estate and calculate values for the stats and distance
-func (srv *Server) patrol(ctx context.Context, estateID string) error {
+// calculateEstateMetadata to make patrol function free of database dependencies
+// easier and simpler test cases.
+func (srv *Server) calculateEstateMetadata(
+	ctx context.Context,
+	estateID string,
+) error {
 	estate, err := srv.repository.GetEstateByID(
 		ctx,
 		estateID,
@@ -51,6 +58,42 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 	lenTrees := len(trees)
 	if lenTrees < 1 {
 		return nil
+	}
+
+	minHeight, maxHeight, medianHeight, routeDistance, routePath, err := srv.patrol(estate, trees)
+	if err != nil {
+		return err
+	}
+
+	err = srv.repository.UpdateEstate(
+		ctx,
+		estateID,
+		lenTrees,
+		minHeight,
+		maxHeight,
+		medianHeight,
+		routeDistance,
+		routePath,
+	)
+
+	return err
+}
+
+// patrol do patrol the estate and calculate values for the stats and distance
+func (srv *Server) patrol(
+	estate repository.Estate,
+	trees []repository.Tree,
+) (min, max, median, routeDistance int, routePath string, err error) {
+	// func (srv *Server) patrol(ctx context.Context, estateID string) error {
+	if estate.Width == 0 || estate.Length == 0 {
+		err = errors.New("invalid estate value")
+		return
+	}
+
+	lenTrees := len(trees)
+	if lenTrees < 1 {
+		err = errors.New("no trees found in estate")
+		return
 	}
 
 	// we are making it so it is base 1 instead index 0
@@ -83,12 +126,10 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 		}
 	}
 
-	var medianHeight int
 	sort.Ints(heights)
+	medianHeight := heights[lenTrees/2]
 	if lenTrees%2 == 0 {
 		medianHeight = (heights[lenTrees/2-1] + heights[lenTrees/2]) / 2
-	} else {
-		medianHeight = heights[lenTrees/2]
 	}
 
 	var currDistance, verticalMove int
@@ -177,16 +218,5 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 		currDistance = currDistance + currDroneHeight
 	}
 
-	err = srv.repository.UpdateEstate(
-		ctx,
-		estateID,
-		lenTrees,
-		minHeight,
-		maxHeight,
-		medianHeight,
-		currDistance,
-		strb.String(),
-	)
-
-	return err
+	return minHeight, maxHeight, medianHeight, currDistance, strb.String(), nil
 }

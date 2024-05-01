@@ -110,7 +110,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id string) error {
 	resp.Id = strTreeID
 
 	// TODO: calculate estate metadata (i.e: count, max, min, median, distance, routes)
-	err = srv.patrol(ectx.Request().Context(), id)
+	err = srv.calculateEstateMetadata(ectx.Request().Context(), id)
 	if err != nil {
 		// TODO: what should we do ?
 		// ideally, we have this on background, with multiple retry and then
