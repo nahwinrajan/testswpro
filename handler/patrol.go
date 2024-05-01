@@ -84,7 +84,6 @@ func (srv *Server) patrol(
 	estate repository.Estate,
 	trees []repository.Tree,
 ) (min, max, median, routeDistance int, routePath string, err error) {
-	// func (srv *Server) patrol(ctx context.Context, estateID string) error {
 	if estate.Width == 0 || estate.Length == 0 {
 		err = errors.New("invalid estate value")
 		return
@@ -155,7 +154,7 @@ func (srv *Server) patrol(
 		if y%2 == 0 {
 			// if it is even row, loop from end (width) to start / west to east
 			// the tree given by input is 1 index base not 0 index base, thus we just leave the 0 row and col empty
-			for x := lenCol - 1; x > 0; x++ {
+			for x := lenCol - 1; x > 0; x-- {
 				currTreeHeight = fields[y][x]
 				// calculate vertical movement distance if there is tree planted
 				if currTreeHeight > 0 {
