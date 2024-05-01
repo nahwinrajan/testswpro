@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/nahwinrajan/testswpro/generated"
 	"github.com/nahwinrajan/testswpro/handler"
 	"github.com/nahwinrajan/testswpro/repository"
@@ -26,11 +28,7 @@ func main() {
 }
 
 func newServer() *handler.Server {
-	// *** DEBUGGING
-	dbDsn := "postgres://postgres:postgres@localhost:5432/database?sslmode=disable"
-	// *** END DEBUGGING
-
-	// dbDsn := os.Getenv("DATABASE_URL")
+	dbDsn := os.Getenv("DATABASE_URL")
 	repo := repository.New(dbDsn)
 
 	return handler.New(repo)
