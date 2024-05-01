@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 )
@@ -15,19 +14,19 @@ const (
 	distanceBetweenPlan = 10
 	treeHeightMax       = 30
 	treeHeightMin       = 1
-	monitorDistance     = 1
 
 	// stepStrFormat: step_#,x,y,direction,step_distance,current_distance
-	stepStrFormat = "%d,%d,%d,%s,%d,%d"
+	stepStrFormat = "%d,%d,%d,%s,%d,%d;"
 )
 
 const (
-	directionEW = "ew" // to the left x axis
-	directionWE = "we" // to the right x axis
-	directionSN = "sn" // up on y axis
-	directionNS = "ns" // down on y axis
-	directionVU = "vu" // up adjusting for tree height
-	directionVD = "vd" // down adjusting for tree height
+	directionEW         = "ew" // to the left x axis
+	directionWE         = "we" // to the right x axis
+	directionSN         = "sn" // up on y axis
+	directionNS         = "ns" // down on y axis
+	directionVU         = "vu" // up adjusting for tree height
+	directionVD         = "vd" // down adjusting for tree height
+	directionSameHeight = "--" // down adjusting for tree height
 )
 
 // NOTE: ideally I would want to put this in "usecase" layer
@@ -49,21 +48,34 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 		return err
 	}
 
+	lenTrees := len(trees)
+	if lenTrees < 1 {
+		return nil
+	}
+
 	// we are making it so it is base 1 instead index 0
-	fields := make([][]int, 0, estate.Length+1)
-	for colIdx := 0; colIdx < estate.Length+1; colIdx++ {
-		fields[colIdx] = make([]int, 0, estate.Width+1)
+	lenRow := estate.Length + 1
+	lenCol := estate.Width + 1
+	fields := make([][]int, lenRow)
+	for rowIdx := 0; rowIdx < lenRow; rowIdx++ {
+		fields[rowIdx] = make([]int, lenCol)
 	}
 
 	// TODO: in case performance detoriate, do this within the distance / route loop
 	// populate the fields with respective trees in their plot
-	lenTrees := len(trees)
 	heights := make([]int, 0, lenTrees)
-	var minHeight, maxHeight = math.MaxInt, math.MinInt
+	var minHeight, maxHeight int
 	for _, tree := range trees {
 		fields[tree.Y][tree.X] = tree.Height
 
 		heights = append(heights, tree.Height)
+		// if this is the first iteration
+		if minHeight == 0 && maxHeight == 0 {
+			maxHeight = tree.Height
+			minHeight = tree.Height
+			continue
+		}
+
 		if tree.Height > maxHeight {
 			maxHeight = tree.Height
 		} else if tree.Height < minHeight {
@@ -82,84 +94,92 @@ func (srv *Server) patrol(ctx context.Context, estateID string) error {
 	var currDistance, verticalMove int
 	var currDirection string
 	var strb strings.Builder
-	currHeight, currStepNumber := 1, 1
+	currDroneHeight, currTreeHeight, currStepNumber := 0, 0, 0
+	var monitorDistance = 1
 
 	// stepStrFormat: step_#,x,y,direction,step_distance,current_distance
-	// stepStrFormat = "%d,%d,%d,%s,%d,%d"
+	// stepStrFormat = "%d,%d,%d,%s,%d,%d;"
 
-	for y := 1; y <= estate.Length; y++ {
-		switch {
-		case y%2 == 0:
-			// if its even row, loop from column end to column start
-			for x := estate.Width; x > 0; x-- {
+	for y := 1; y < lenRow; y++ {
+		// calculate the distance between row on row change
+		if y > 1 {
+			currDistance += distanceBetweenPlan
+			currDirection = directionSN // always go up on changing row
+			currStepNumber++
+
+			fmt.Fprintf(&strb, stepStrFormat, currStepNumber, estate.Width, y, currDirection, distanceBetweenPlan, currDistance)
+		}
+
+		// crude hack to mimick drone movement
+		if y%2 == 0 {
+			// if it is even row, loop from end (width) to start / west to east
+			// the tree given by input is 1 index base not 0 index base, thus we just leave the 0 row and col empty
+			for x := lenCol - 1; x > 0; x++ {
+				currTreeHeight = fields[y][x]
 				// calculate vertical movement distance if there is tree planted
-				// as discussed adjust to tree height is higher priority to avoid drone crashing
-				if fields[y][x] != 0 {
-					switch {
-					case fields[y][x] < currHeight:
-						verticalMove = (currHeight - fields[y][x]) + monitorDistance
+				if currTreeHeight > 0 {
+					if currDroneHeight == (currTreeHeight + monitorDistance) {
+						verticalMove = 0
+						currDirection = directionSameHeight
+					} else if (currTreeHeight + monitorDistance) < currDroneHeight {
+						verticalMove = (currDroneHeight - (currTreeHeight + monitorDistance))
 						currDirection = directionVD
-					case fields[y][x] > currHeight:
-						verticalMove = (fields[y][x] - currHeight) + monitorDistance
+					} else if (currTreeHeight + monitorDistance) > currDroneHeight {
+						verticalMove = ((currTreeHeight + monitorDistance) - currDroneHeight)
 						currDirection = directionVU
 					}
 
 					currDistance = currDistance + verticalMove
-					currHeight = fields[y][x] + monitorDistance
+					currDroneHeight = currTreeHeight + monitorDistance
+					currStepNumber++
 
 					fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, verticalMove, currDistance)
-					currStepNumber++
 				}
 
 				currDistance += distanceBetweenPlan
-				switch {
-				case y != 1 && x == 1:
-					currDirection = directionSN
-				default:
-					currDirection = directionEW
-				}
-
-				fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, distanceBetweenPlan, currDistance)
+				currDirection = directionWE
 				currStepNumber++
+				fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, verticalMove, currDistance)
 			}
-		default:
-			// if its odd row, loop from column start to column end
-			for x := 1; x <= estate.Width; x++ {
+		} else {
+			// if its odd row, loop from column start to column end (east to west)
+			for x := 1; x < lenCol; x++ {
+				currTreeHeight = fields[y][x]
 				// calculate vertical movement distance if there is tree planted
-				// as discussed adjust to tree height is higher priority to avoid drone crashing
-				if fields[y][x] != 0 {
-					switch {
-					case fields[y][x] < currHeight:
-						verticalMove = (currHeight - fields[y][x]) + monitorDistance
+				if currTreeHeight > 0 {
+					if currDroneHeight == (currTreeHeight + monitorDistance) {
+						verticalMove = 0
+						currDirection = directionSameHeight
+					} else if (currTreeHeight + monitorDistance) < currDroneHeight {
+						verticalMove = (currDroneHeight - (currTreeHeight + monitorDistance))
 						currDirection = directionVD
-					case fields[y][x] > currHeight:
-						verticalMove = (fields[y][x] - currHeight) + monitorDistance
+					} else if (currTreeHeight + monitorDistance) > currDroneHeight {
+						verticalMove = ((currTreeHeight + monitorDistance) - currDroneHeight)
 						currDirection = directionVU
 					}
 
 					currDistance = currDistance + verticalMove
-					currHeight = fields[y][x] + monitorDistance
+					currDroneHeight = currTreeHeight + monitorDistance
+					currStepNumber++
 
 					fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, verticalMove, currDistance)
-					currStepNumber++
 				}
 
 				currDistance += distanceBetweenPlan
-				switch {
-				case y != 1 && x == 1:
-					currDirection = directionSN
-				default:
-					currDirection = directionWE
-				}
-
-				fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, distanceBetweenPlan, currDistance)
+				currDirection = directionEW
 				currStepNumber++
+				fmt.Fprintf(&strb, stepStrFormat, currStepNumber, x, y, currDirection, verticalMove, currDistance)
 			}
 		}
 	}
 
+	if currDroneHeight > 0 {
+		currDistance = currDistance + currDroneHeight
+	}
+
 	err = srv.repository.UpdateEstate(
 		ctx,
+		estateID,
 		lenTrees,
 		minHeight,
 		maxHeight,

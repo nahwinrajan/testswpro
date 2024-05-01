@@ -32,7 +32,7 @@ func (srv *Server) PostEstate(ectx echo.Context) error {
 		return ectx.JSON(http.StatusBadRequest, respBadReq)
 	}
 
-	id, err := srv.repository.InsertEstate(ectx.Request().Context(), payload.Width, payload.Length)
+	estateID, err := srv.repository.InsertEstate(ectx.Request().Context(), payload.Width, payload.Length)
 	if err != nil {
 		// TODO: change log level according log level company guideline (info, error, etc)
 		ectx.Logger().Errorf("[CreateEstate] failed to insert payload:%+v, err:%s", payload, err)
@@ -43,26 +43,26 @@ func (srv *Server) PostEstate(ectx echo.Context) error {
 	}
 
 	var resp generated.CreateEstateResponse
-	resp.Id = id
+	resp.Id = estateID
 	return ectx.JSON(http.StatusCreated, resp)
 }
 
-func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
+func (srv *Server) PostEstateIdTree(ectx echo.Context, id string) error {
 	var payload generated.CreateTreeRequestBody
 	var respBadReq generated.ErrorResponse
 	respBadReq.Message = "invalid value or format"
 
-	strEstateID := ectx.Param("id")
-	if len(strEstateID) == 0 {
+	// id is estateID
+	if len(id) == 0 {
 		// TODO: change log level according log level company guideline (info, error, etc)
-		ectx.Logger().Errorf("[CreateTree] param tree_id not passed")
+		ectx.Logger().Errorf("[CreateTree] param estate_id not passed")
 		respBadReq.Message = "resource not found"
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
 
 	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
-		strEstateID,
+		id,
 	)
 	if err != nil {
 		respBadReq.Message = "resource not found"
@@ -94,7 +94,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 
 	strTreeID, err := srv.repository.InsertTree(
 		ectx.Request().Context(),
-		strEstateID,
+		id,
 		payload.X,
 		payload.Y,
 		payload.Height,
@@ -110,7 +110,7 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 	resp.Id = strTreeID
 
 	// TODO: calculate estate metadata (i.e: count, max, min, median, distance, routes)
-	err = srv.patrol(ectx.Request().Context(), strEstateID)
+	err = srv.patrol(ectx.Request().Context(), id)
 	if err != nil {
 		// TODO: what should we do ?
 		// ideally, we have this on background, with multiple retry and then
@@ -123,12 +123,12 @@ func (srv *Server) PostEstateIdTree(ectx echo.Context, id int) error {
 	return ectx.JSON(http.StatusCreated, resp)
 }
 
-func (srv *Server) GetEstateIdStats(ectx echo.Context, id int) error {
+func (srv *Server) GetEstateIdStats(ectx echo.Context, id string) error {
 	var respBadReq generated.ErrorResponse
 	respBadReq.Message = "invalid value or format"
 
-	strEstateID := ectx.Param("id")
-	if len(strEstateID) == 0 {
+	// id is estateID
+	if len(id) == 0 {
 		// TODO: change log level according log level company guideline (info, error, etc)
 		ectx.Logger().Errorf("[GetEstateStats] param estate_id not passed")
 		respBadReq.Message = "resource not found"
@@ -137,11 +137,11 @@ func (srv *Server) GetEstateIdStats(ectx echo.Context, id int) error {
 
 	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
-		strEstateID,
+		id,
 	)
 	if err != nil {
 		// TODO: change log level according log level company guideline (info, error, etc)
-		ectx.Logger().Errorf("[GetEstateStats] failed to read estate_id:%+v, err:%s", strEstateID, err)
+		ectx.Logger().Errorf("[GetEstateStats] failed to read estate_id:%+v, err:%s", id, err)
 		respBadReq.Message = "resource not found"
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
@@ -155,12 +155,12 @@ func (srv *Server) GetEstateIdStats(ectx echo.Context, id int) error {
 	return ectx.JSON(http.StatusOK, resp)
 }
 
-func (srv *Server) GetEstateIdDronePlan(ectx echo.Context, id int) error {
+func (srv *Server) GetEstateIdDronePlan(ectx echo.Context, id string) error {
 	var respBadReq generated.ErrorResponse
 	respBadReq.Message = "invalid value or format"
 
-	strEstateID := ectx.Param("id")
-	if len(strEstateID) == 0 {
+	// id is estateID
+	if len(id) == 0 {
 		// TODO: change log level according log level company guideline (info, error, etc)
 		ectx.Logger().Errorf("[DronePlan] param estate_id not passed")
 		respBadReq.Message = "resource not found"
@@ -169,12 +169,12 @@ func (srv *Server) GetEstateIdDronePlan(ectx echo.Context, id int) error {
 
 	estate, err := srv.repository.GetEstateByID(
 		ectx.Request().Context(),
-		strEstateID,
+		id,
 	)
 	if err != nil {
 		respBadReq.Message = "resource not found"
 		// TODO: change log level according log level company guideline (info, error, etc)
-		ectx.Logger().Errorf("[DronePlan] failed retrieve information estate_id:%s, err:%s", strEstateID, err)
+		ectx.Logger().Errorf("[DronePlan] failed retrieve information estate_id:%s, err:%s", id, err)
 		return ectx.JSON(http.StatusNotFound, respBadReq)
 	}
 

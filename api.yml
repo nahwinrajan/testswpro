@@ -53,7 +53,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '201':
           description: Resource Created
@@ -81,7 +81,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: Success/OK
@@ -103,7 +103,7 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
+            type: string
         # - name: max_distance
         #   in: query
         #   required: true

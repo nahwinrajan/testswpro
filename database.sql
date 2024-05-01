@@ -5,10 +5,8 @@
 -- 3. How you name the fields.
 -- In this assignment we will use PostgreSQL as the database.
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE "estates" (
-  "estate_id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "estate_id" text PRIMARY KEY,
   "width" int DEFAULT 0,
   "length" int DEFAULT 0,
   "count" int DEFAULT 0,
@@ -16,16 +14,20 @@ CREATE TABLE "estates" (
   "max" int DEFAULT 0,
   "median" int DEFAULT 0,
   "patrol_distance" int DEFAULT 0,
-  "patrol_route" text DEFAULT ''
+  "patrol_route" text DEFAULT '',
+  "created_at" timestamp DEFAULT (now()),
+  "updated_at" timestamp NOT NULL DEFAULT (now()),
 );
 
 CREATE TABLE "trees" (
-  "tree_id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  "estate_id" UUID,
+  "tree_id" text PRIMARY KEY,
+  "estate_id" text,
   "x" int NOT NULL,
   "y" int NOT NULL,
   "height" int NOT NULL,
-  CONSTRAINT "unique_trees_estate_x_y" UNIQUE ("estate_id", "x", "y")
+  "created_at" timestamp DEFAULT (now()),
+  "updated_at" timestamp NOT NULL DEFAULT (now()),
+  UNIQUE ("estate_id", "x", "y")
 );
 
 CREATE INDEX "idx_trees_estate_x_y" ON "trees" ("estate_id", "x", "y");

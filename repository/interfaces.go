@@ -12,9 +12,9 @@ import "context"
 // TODO: data structure into its own container in appropriate layer
 // TODO: interface define on package needing it, not original package
 type Repositorier interface {
-	GetEstateByID(ctx context.Context, estateID string) (output Estate, err error)
+	GetEstateByID(ctx context.Context, estateID string) (Estate, error)
 	InsertEstate(ctx context.Context, width, length int) (estateID string, err error)
-	UpdateEstate(ctx context.Context, count, min, max, median, patrol_distance int, patrol_route string) error
+	UpdateEstate(ctx context.Context, estateID string, count, min, max, median, patrolDistance int, patrolRoute string) error
 	GetAllTreesInEstate(ctx context.Context, estateID string) ([]Tree, error)
 	InsertTree(ctx context.Context, estateID string, x, y, height int) (treeID string, err error)
 	DeleteTree(ctx context.Context, treeID string) error
