@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/lib/pq"
 
@@ -12,10 +11,7 @@ import (
 
 const (
 	// *** Estate ***
-	queryGetEstateByID = `SELECT 
-		estate_id, width, length, count, min, max, median, patrol_distance, patrol_route
-	 FROM estates 
-	 WHERE estate_id = $1`
+	queryGetEstateByID = `SELECT estate_id, width, length, count, min, max, median, patrol_distance, patrol_route FROM estates WHERE estate_id = $1`
 
 	queryInsertEstate = `
 		INSERT INTO estates (estate_id, width, length)
@@ -64,10 +60,7 @@ func (rp *Repository) GetEstateByID(ctx context.Context, estateID string) (Estat
 		&estate.PatrolDistance,
 		&estate.PatrolRoute,
 	)
-	// *** DEBUGGING
-	fmt.Printf("---***--- [Repo.GetEstateByID] returned estate: %+v\n", estate)
-	fmt.Printf("---***--- [Repo.GetEstateByID] returned error: %+v\n", err)
-	// *** END DEBUGGING
+
 	return estate, err
 }
 
@@ -115,14 +108,14 @@ func (rp *Repository) GetAllTreesInEstate(ctx context.Context, estateID string) 
 
 	rows, err := rp.db.QueryContext(ctx, queryGetTreeByEstateID, estateID)
 	if err != nil {
-		return trees, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var tree Tree
 		if err := rows.Scan(&tree.ID, &tree.EstateID, &tree.X, &tree.Y, &tree.Height); err != nil {
-			return trees, err
+			return nil, err
 		}
 		trees = append(trees, tree)
 	}
@@ -146,17 +139,10 @@ func (rp *Repository) InsertTree(ctx context.Context, estateID string, x, y, hei
 		height,
 	)
 
-	// *** DEBUGGING
-	fmt.Printf("---***--- [Repo.InsertTree] returned tree_id:%s, error: %+v\n", uuidTreeID.String(), err)
-	// // *** END DEBUGGING
-
 	// extra steps for checking specific db error
 	if err != nil {
 		// Check if the error is due to a unique constraint violation
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			// *** DEBUGGING
-			fmt.Printf("---***--- [Repo.InsertTree] pq error: %+v\n", pqErr)
-			// // *** END DEBUGGING
 			// Tree already exists at the specified location, return an error
 			return "", errors.New("tree already exists at the specified location")
 		}

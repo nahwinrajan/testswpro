@@ -3,6 +3,7 @@ module github.com/nahwinrajan/testswpro
 go 1.21.4
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/getkin/kin-openapi v0.124.0
 	github.com/google/uuid v1.5.0
 	github.com/labstack/echo/v4 v4.12.0
