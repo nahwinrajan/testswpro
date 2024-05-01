@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/nahwinrajan/testswpro/repository"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestPatrol(t *testing.T) {
@@ -104,6 +106,62 @@ func TestPatrol(t *testing.T) {
 			require.Equal(t, tc.expectedDistance, distance)
 			require.Equal(t, tc.expectedPath, path)
 			require.Equal(t, tc.expectedError, err)
+		})
+	}
+}
+
+func TestCalculateEstateMetadata(t *testing.T) {
+	tests := []struct {
+		name                string
+		estate              repository.Estate
+		trees               []repository.Tree
+		mockGetEstateErr    error
+		mockGetAllTreesErr  error
+		mockUpdateEstateErr error
+		expectedUpdateErr   error
+	}{
+		{
+			name: "Valid estate with trees",
+			estate: repository.Estate{
+				Width:  5,
+				Length: 1,
+			},
+			trees: []repository.Tree{
+				{X: 2, Y: 1, Height: 5},
+				{X: 3, Y: 1, Height: 3},
+				{X: 4, Y: 1, Height: 4},
+			},
+			mockGetEstateErr:    nil,
+			mockGetAllTreesErr:  nil,
+			mockUpdateEstateErr: nil,
+			expectedUpdateErr:   nil,
+		},
+		// Add more test cases here as needed
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a new instance of the mock controller
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockRepo := repository.NewMockRepositorier(ctrl)
+
+			// Create a new server instance with the mock repository
+			srv := Server{
+				repository: mockRepo,
+			}
+
+			// Set up mock expectations
+			mockRepo.EXPECT().GetEstateByID(gomock.Any(), gomock.Any()).Return(tc.estate, tc.mockGetEstateErr).Times(1)
+			mockRepo.EXPECT().GetAllTreesInEstate(gomock.Any(), gomock.Any()).Return(tc.trees, tc.mockGetAllTreesErr).Times(1)
+			mockRepo.EXPECT().UpdateEstate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(tc.mockUpdateEstateErr).Times(1)
+
+			// Call the function under test
+			err := srv.calculateEstateMetadata(context.Background(), "estate_id")
+
+			// Assert the result
+			require.Equal(t, tc.expectedUpdateErr, err)
 		})
 	}
 }
