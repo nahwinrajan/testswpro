@@ -299,103 +299,235 @@ func TestGetEstateIdDronePlan(t *testing.T) {
 	}
 }
 
-// func TestPostEstateIdTree(t *testing.T) {
-// 	tests := []struct {
-// 		name               string
-// 		id                 string
-// 		payload            generated.CreateTreeRequestBody
-// 		expectedEstate     repository.Estate
-// 		callRepoInsertTree bool
-// 		callCalculate      bool
-// 		mockInsertTreeErr  error
-// 		mockCalculateErr   error
-// 		expectedCode       int
-// 		expectError        error
-// 		expectedTreeID     string
-// 	}{
-// 		{
-// 			name: "Positive Flow",
-// 			id:   "valid_estate_id",
-// 			payload: generated.CreateTreeRequestBody{
-// 				X:      5,
-// 				Y:      10,
-// 				Height: 15,
-// 			},
-// 			expectedEstate: repository.Estate{
-// 				ID:     "valid_estate_id",
-// 				Width:  20,
-// 				Length: 30,
-// 			},
-// 			callRepoInsertTree: true,
-// 			callCalculate:      true,
-// 			mockInsertTreeErr:  nil,
-// 			mockCalculateErr:   nil,
-// 			expectedCode:       http.StatusCreated,
-// 			expectError:        nil,
-// 			expectedTreeID:     "mocked_tree_id",
-// 		},
-// 		// Add more test cases for negative scenarios if needed
-// 	}
+func TestPostEstateIdTree(t *testing.T) {
+	validTrees := []repository.Tree{
+		{X: 2, Y: 1, Height: 5},
+		{X: 3, Y: 1, Height: 3},
+		{X: 4, Y: 1, Height: 4},
+	}
 
-// 	for _, tc := range tests {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			e := echo.New()
+	simpleValidEstate := repository.Estate{
+		ID:     "valid_estate_id",
+		Width:  5,
+		Length: 1,
+	}
 
-// 			ctrl := gomock.NewController(t)
-// 			defer ctrl.Finish()
+	errInvalidValueFormat := errors.New("invalid value or format")
+	errResourceNotFound := errors.New("resource not found")
 
-// 			mockRepo := repository.NewMockRepositorier(ctrl)
+	tests := []struct {
+		name           string
+		id             string
+		payload        generated.CreateTreeRequestBody
+		expectedEstate repository.Estate
+		// REMEMBER WE ARE MOCKING THE DB!
+		estateTrees        []repository.Tree
+		callRepoInsertTree bool
+		callCalculate      bool
+		mockInsertTreeErr  error
+		mockCalculateErr   error
+		mockRepoEstateErr  error
+		expectedCode       int
+		expectError        error
+		expectedTreeID     string
+	}{
+		{
+			name: "Positive Flow",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 4,
+			},
+			expectedEstate: simpleValidEstate,
+			// REMEMBER WE ARE MOCKING THE DB!
+			// this is what we will return from the mock,
+			estateTrees:        validTrees,
+			callRepoInsertTree: true,
+			callCalculate:      true,
+			mockInsertTreeErr:  nil,
+			mockCalculateErr:   nil,
+			mockRepoEstateErr:  nil,
+			expectedCode:       http.StatusCreated,
+			expectError:        nil,
+			expectedTreeID:     "mocked_tree_id",
+		},
+		{
+			name: "Invalid Estate ID",
+			id:   "",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 4,
+			},
+			expectedCode: http.StatusNotFound,
+			expectError:  errResourceNotFound,
+		},
+		{
+			name: "Repository Error on GetEstateByID",
+			id:   "invalid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 4,
+			},
+			mockRepoEstateErr: errors.New("repository error"),
+			expectedCode:      http.StatusNotFound,
+			expectError:       errResourceNotFound,
+		},
+		{
+			name: "Invalid Payload - Height is Zero",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 0,
+			},
+			expectedEstate:    simpleValidEstate,
+			mockRepoEstateErr: nil,
+			expectedCode:      http.StatusBadRequest,
+			expectError:       errInvalidValueFormat,
+		},
+		{
+			name: "Invalid Payload - X Coordinate Out of Range",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      10, // Exceeds estate width
+				Y:      1,
+				Height: 4,
+			},
+			expectedEstate: simpleValidEstate,
+			expectedCode:   http.StatusBadRequest,
+			expectError:    errInvalidValueFormat,
+		},
+		{
+			name: "Invalid Payload - Y Coordinate Out of Range",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      10, // Exceeds estate length
+				Height: 4,
+			},
+			expectedEstate: simpleValidEstate,
+			expectedCode:   http.StatusBadRequest,
+			expectError:    errInvalidValueFormat,
+		},
+		{
+			name: "Repository Error on InsertTree",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 4,
+			},
+			expectedEstate:     simpleValidEstate,
+			callRepoInsertTree: true,
+			mockInsertTreeErr:  errors.New("repository error"),
+			expectedCode:       http.StatusBadRequest,
+			expectError:        errInvalidValueFormat,
+		},
+		{
+			name: "Repository Error on CalculateEstateMetadata",
+			id:   "valid_estate_id",
+			payload: generated.CreateTreeRequestBody{
+				X:      4,
+				Y:      1,
+				Height: 4,
+			},
+			expectedEstate:     simpleValidEstate,
+			estateTrees:        validTrees,
+			callRepoInsertTree: true,
+			callCalculate:      true,
+			mockCalculateErr:   errors.New("faux error for mock calculate error"),
+			expectedCode:       http.StatusBadRequest,
+			expectError:        errInvalidValueFormat,
+		},
+	}
 
-// 			srv := Server{
-// 				repository: mockRepo,
-// 			}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := echo.New()
 
-// 			payloadBytes, err := json.Marshal(tc.payload)
-// 			require.NoError(t, err)
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-// 			req := httptest.NewRequest(http.MethodPost, "/estate/"+tc.id+"/tree", bytes.NewBuffer(payloadBytes))
-// 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			mockRepo := repository.NewMockRepositorier(ctrl)
 
-// 			rec := httptest.NewRecorder()
+			srv := Server{
+				repository: mockRepo,
+			}
 
-// 			if tc.id != "" {
-// 				mockRepo.EXPECT().
-// 					GetEstateByID(gomock.Any(), tc.id).
-// 					Return(tc.expectedEstate, nil).MaxTimes(2)
-// 			}
+			payloadBytes, err := json.Marshal(tc.payload)
+			require.NoError(t, err)
 
-// 			if tc.callRepoInsertTree {
-// 				mockRepo.EXPECT().
-// 					InsertTree(gomock.Any(), tc.id, tc.payload.X, tc.payload.Y, tc.payload.Height).
-// 					Return(tc.expectedTreeID, tc.mockInsertTreeErr).
-// 					Times(1)
-// 			}
+			req := httptest.NewRequest(http.MethodPost, "/estate/"+tc.id+"/tree", bytes.NewBuffer(payloadBytes))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
-// 			if tc.callRepoInsertTree && tc.mockInsertTreeErr != nil {
-// 				mockRepo.EXPECT().
-// 					DeleteTree(gomock.Any(), tc.expectedTreeID).
-// 					Return(nil).
-// 					Times(1)
-// 			} else if tc.callRepoInsertTree && tc.mockInsertTreeErr == nil {
-// 				if tc.callCalculate {
-// 					mockRepo.EXPECT().GetAllTreesInEstate(gomock.Any(), tc.id).Return(gomock.Any(), nil)
-// 					mockRepo.EXPECT().UpdateEstate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(gomock.Any()).Return(nil)
-// 				}
-// 			}
+			rec := httptest.NewRecorder()
 
-// 			c := e.NewContext(req, rec)
-// 			err = srv.PostEstateIdTree(c, tc.id)
-// 			require.Equal(t, tc.expectError, err)
+			if tc.id != "" {
+				mockRepo.EXPECT().
+					GetEstateByID(gomock.Any(), tc.id).
+					Return(tc.expectedEstate, tc.mockRepoEstateErr).MaxTimes(2)
+			}
 
-// 			require.Equal(t, tc.expectedCode, rec.Code)
+			if tc.callRepoInsertTree {
+				mockRepo.EXPECT().
+					InsertTree(gomock.Any(), tc.id, tc.payload.X, tc.payload.Y, tc.payload.Height).
+					Return(tc.expectedTreeID, tc.mockInsertTreeErr).
+					Times(1)
+			}
 
-// 			if tc.expectedCode == http.StatusCreated {
-// 				var resp generated.CreateTreeResponse
-// 				err = json.Unmarshal(rec.Body.Bytes(), &resp)
-// 				require.NoError(t, err)
+			if tc.callRepoInsertTree && tc.mockInsertTreeErr == nil {
+				mockRepo.EXPECT().GetAllTreesInEstate(gomock.Any(), tc.id).Return(tc.estateTrees, nil)
 
-// 				require.Equal(t, tc.expectedTreeID, resp.Id)
-// 			}
-// 		})
-// 	}
-// }
+				if tc.callCalculate && tc.mockCalculateErr == nil {
+					mockRepo.EXPECT().UpdateEstate(
+						gomock.Any(), // ctx
+						gomock.Any(), // estate id
+						gomock.Any(), // count
+						gomock.Any(), // min
+						gomock.Any(), // max
+						gomock.Any(), // median
+						gomock.Any(), // patrol distance
+						gomock.Any(), // patrol route
+					).Return(nil)
+				} else if tc.callCalculate && tc.mockCalculateErr != nil {
+					mockRepo.EXPECT().UpdateEstate(
+						gomock.Any(), // ctx
+						gomock.Any(), // estate id
+						gomock.Any(), // count
+						gomock.Any(), // min
+						gomock.Any(), // max
+						gomock.Any(), // median
+						gomock.Any(), // patrol distance
+						gomock.Any(), // patrol route
+					).Return(tc.mockCalculateErr)
+
+					mockRepo.EXPECT().
+						DeleteTree(gomock.Any(), tc.expectedTreeID).
+						Return(nil).
+						Times(1)
+				}
+			}
+
+			c := e.NewContext(req, rec)
+			err = srv.PostEstateIdTree(c, tc.id)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedCode, rec.Code)
+
+			if tc.expectedCode == http.StatusCreated {
+				var resp generated.CreateTreeResponse
+				err = json.Unmarshal(rec.Body.Bytes(), &resp)
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.Id)
+			} else {
+				var errResp generated.ErrorResponse
+				err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+				require.NoError(t, err)
+				require.Equal(t, tc.expectError.Error(), errResp.Message)
+			}
+		})
+	}
+}
